@@ -168,8 +168,8 @@ public class QuizActivity extends AppCompatActivity {
             score++;
             textViewScore.setText("Scor: " + score);
 
-            showSolution();
         }
+        showSolution();
     }
 
     private void showSolution(){
