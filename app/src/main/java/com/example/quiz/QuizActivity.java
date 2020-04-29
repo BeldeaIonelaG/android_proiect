@@ -1,5 +1,6 @@
 package com.example.quiz;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
@@ -7,6 +8,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.PersistableBundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RadioButton;
@@ -14,6 +16,7 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -23,11 +26,17 @@ public class QuizActivity extends AppCompatActivity {
 
     public static final String EXTRA_SCORE = "extraScore";
     private static final long COUNTDOWN_IN_MILLIS = 30000;
+    private static final String KEY_SCORE="keyScore";
+    private static final String KEY_QUESTION_COUNT="keyQuestionCount";
+    private static final String KEY_MILLIS_LEFT="keyMillisLeft";
+    private static final String KEY_ANSWERED="keyAnswered";
+    private static final String KEY_QUESTION_LIST="keyQuestionList";
 
     private TextView textViewQuestion;
     private TextView textViewScore;
     private TextView textViewQuestionCount;
     private TextView textViewCountDown;
+    private TextView textViewCategory;
     private RadioGroup rbGroup;
     private RadioButton rb1;
     private RadioButton rb2;
@@ -42,7 +51,7 @@ public class QuizActivity extends AppCompatActivity {
     private long timeLeftInMillis;
 
 
-    private List<Question> questionList;
+    private ArrayList<Question> questionList;
     private int questionCounter;
     private int questionCountTotal;
     private Question currentQuestion;
@@ -62,6 +71,8 @@ public class QuizActivity extends AppCompatActivity {
         textViewScore = findViewById(R.id.text_view_score);
         textViewQuestionCount = findViewById(R.id.text_view_question_count);
         textViewCountDown = findViewById(R.id.text_view_countdown);
+        textViewCategory=findViewById(R.id.text_view_category);
+
         rbGroup = findViewById(R.id.radio_group);
         rb1 = findViewById(R.id.radio_button1);
         rb2 = findViewById(R.id.radio_button2);
@@ -72,14 +83,35 @@ public class QuizActivity extends AppCompatActivity {
         textColorDefaultRb = rb1.getTextColors();
         textColorDefaultCd = textViewCountDown.getTextColors();
 
-        QuizDbHelper dbHelper = new QuizDbHelper(this);
-        questionList = dbHelper.getAllQuestions();
-        questionCountTotal = questionList.size();
-        Collections.shuffle(questionList);
+        Intent intent=getIntent();
+        int categoryID=intent.getIntExtra(MainActivity.EXTRA_CATEGORY_ID,0);
+        String categoryName=intent.getStringExtra(MainActivity.EXTRA_CATEGORY_NAME);
+        textViewCategory.setText("Categorie: "+categoryName);
 
 
+        if(savedInstanceState==null){
+            QuizDbHelper dbHelper =  QuizDbHelper.getInstance(this);
+            questionList = dbHelper.getQuestions(categoryID);
+            questionCountTotal = questionList.size();
+            Collections.shuffle(questionList);
 
-        showNextQuestion();
+            showNextQuestion();
+        } else{
+            questionList= savedInstanceState.getParcelableArrayList(KEY_QUESTION_LIST);
+            questionCountTotal= questionList.size();
+            questionCounter= savedInstanceState.getInt(KEY_QUESTION_COUNT);
+            currentQuestion= questionList.get(questionCounter-1);
+            score= savedInstanceState.getInt(KEY_SCORE);
+            timeLeftInMillis=savedInstanceState.getLong(KEY_MILLIS_LEFT);
+            answered=savedInstanceState.getBoolean(KEY_ANSWERED);
+
+            if(!answered){
+                startCountDown();
+            }else{
+                updateContDownText();
+                showSolution();
+            }
+        }
         buttonConfirmNext.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -152,7 +184,7 @@ public class QuizActivity extends AppCompatActivity {
         if(timeLeftInMillis < 10000){
             textViewCountDown.setTextColor(Color.RED);
         } else {
-           textViewCountDown.setTextColor(textColorDefaultCd);
+            textViewCountDown.setTextColor(textColorDefaultCd);
         }
     }
 
@@ -168,8 +200,11 @@ public class QuizActivity extends AppCompatActivity {
             score++;
             textViewScore.setText("Scor: " + score);
 
+
+
         }
         showSolution();
+
     }
 
     private void showSolution(){
@@ -228,5 +263,16 @@ public class QuizActivity extends AppCompatActivity {
         if(countDownTimer != null){
             countDownTimer.cancel();
         }
+    }
+
+
+    @Override
+    protected void onSaveInstanceState( Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(KEY_SCORE,score);
+        outState.putInt(KEY_QUESTION_COUNT, questionCounter);
+        outState.putLong(KEY_MILLIS_LEFT,timeLeftInMillis);
+        outState.putBoolean(KEY_ANSWERED,answered);
+        outState.putParcelableArrayList(KEY_QUESTION_LIST,questionList);
     }
 }
